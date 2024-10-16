@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testimonial Carousel</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .carousel-inner {
+            max-height: 350px; /* Adjust height as needed */
+        }
+        .testimonial-card {
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .testimonial-quote {
+            font-style: italic;
+        }
+        .testimonial-author {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <section class="container py-5">
+        <h2 class="text-center mb-4">What People Say</h2>
+        <div id="testimonialCarousel" class="carousel slide" data-ride="carousel">
+            <div class="carousel-inner">
+                <div class="carousel-item active">
+                    <div class="testimonial-card text-center">
+                        <p class="testimonial-quote">
+                            "This product is a game-changer! It has made my life so much easier."
+                        </p>
+                        <div class="testimonial-author"> - Jane Doe, Company X</div>
+                    </div>
+                </div>
+                <div class="carousel-item">
+                    <div class="testimonial-card text-center">
+                        <p class="testimonial-quote">
+                            "Excellent customer service and amazing features. Highly recommend!"
+                        </p>
+                        <div class="testimonial-author"> - John Smith, Company Y</div>
+                    </div>
+                </div>
+                </div>
+            <a class="carousel-control-prev" href="#testimonialCarousel" role="button" data-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="sr-only">Previous</span>
+            </a>
+            <a class="carousel-control-next" href="#testimonialCarousel" role="button" data-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="sr-only">Next</span>
+            </a>
+        </div>
+    </section>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

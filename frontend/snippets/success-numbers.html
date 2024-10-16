@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Counter Banner</title>
+    <style>
+        .counter-banner {
+            background-color: #161616;  /* Adjust background color as needed */
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 20px;          /* Adjust padding as needed */
+        }
+
+        .counter {
+            text-align: center;
+            flex: 1;  /* Allow counters to take up equal space */
+        }
+
+        .number {
+            font-size: 42px;
+            font-family: 'Roboto', sans-serif; 
+            color: white;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .label {
+            font-size: 16px; 
+            color: white;
+            font-family: 'Roboto Mono', sans-serif;  
+        }
+
+        @media (max-width: 768px) { 
+            .counter-banner {
+                flex-direction: column;
+                align-items: stretch; 
+            }
+
+            .counter {
+                text-align: center;
+                margin-bottom: 10px; 
+            }
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="counter-banner">
+        <div class="counter">
+            <div class="number" data-target="85">0</div>
+            <div class="label">Satisfied Clients</div>
+        </div>
+        <div class="counter">
+            <div class="number" data-target="12">0</div>
+            <div class="label">Years of Experience</div>
+        </div>
+        <div class="counter">
+            <div class="number" data-target="5">0</div>
+            <div class="label">Industries</div>
+        </div>
+    </div>
+
+    <script>
+        const counters = document.querySelectorAll('.number');
+        const speed = 200;
+
+        counters.forEach(counter => {
+           const updateCount = () => {
+               const target = +counter.getAttribute('data-target');
+               const count = +counter.innerText;
+               const increment = target / speed;
+
+               if (count < target) {
+                   counter.innerText = Math.ceil(count + increment);
+                   setTimeout(updateCount, 1);
+               } else {
+                   counter.innerText = target;
+               }
+           } 
+           updateCount();
+        });
+    </script>
+</body>
+</html>
