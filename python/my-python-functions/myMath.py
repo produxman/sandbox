@@ -30,8 +30,6 @@ def hexToDec(hexNum):
         exponent -= 1
     return decNum
 
-print(hexToDec('ABC')) 
-
 def myCalculator():
     # This function acts as a basic calculator for addition, subtraction, multiplication, and division.
     # It takes user input for the operator and two numbers, then performs the specified operation.
@@ -109,4 +107,20 @@ def convertWeight():
         weight = "wtf?"
     print(f"Your weight is {round(weight,1)} {unit}")
 
-convertWeight()
+def convertTemp():
+    # This function converts a given temperature between Celsius and Fahrenheit.
+    # It prompts the user to input a temperature and specify the unit (C for Celsius, F for Fahrenheit).
+    # If the unit is C, it converts the temperature to Fahrenheit; if the unit is F, it converts to Celsius.
+    # If an invalid unit is entered, it outputs "wtf?" to indicate an error.
+    temp = float(input("Enter your temperature: "))
+    unit = input("Celsius or Fahrenheit (C/F): ")
+    if unit == "C":
+        temp = (temp * 9 / 5) + 32
+        unit = "F"
+    elif unit == "F":
+        temp = (temp - 32) * 5/9
+        unit = "C"
+    else:
+        weight = "wtf?"
+    print(f"Your temperature is {round(temp,1)} °{unit}")
+
