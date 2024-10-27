@@ -91,3 +91,22 @@ def calculateHyp(side1, side2):
     hyp = math.sqrt(side1 ** 2 + side2 ** 2)
     answer = "Triangle hypotenuse is " + str(hyp) + " cm"
     print(answer)
+
+def convertWeight():
+    # This function converts a given weight between kilograms and pounds.
+    # It prompts the user to input their weight and the unit (K for kilograms, L for pounds).
+    # If the unit is K, it converts the weight to pounds; if the unit is L, it converts to kilograms.
+    # If an invalid unit is entered, it outputs "wtf?" to indicate an error.
+    weight = float(input("Enter your weight: "))
+    unit = input("Kilograms or Pounds (K/L): ")
+    if unit == "K":
+        weight *= 2.205
+        unit = "Lbs."
+    elif unit == "L":
+        weight /= 2.205
+        unit = "Kgs."
+    else:
+        weight = "wtf?"
+    print(f"Your weight is {round(weight,1)} {unit}")
+
+convertWeight()
