@@ -26,3 +26,26 @@ def hexToDec(hexNum):
     return decNum
 
 print(hexToDec('ABC'))    
+
+
+def myCalculator():
+    operator = input("Select an arithmetic operator (+, -, *, or /): ")
+    var1 = float(input("Enter the first number: "))
+    var2 = float(input("Enter the second number: "))
+    if(operator == "+"):
+        answer = var1 + var2
+        print(answer)
+    elif(operator == "-"):
+        answer = var1 - var2
+        print(answer)
+    elif(operator == "*"):
+        answer = var1 * var2
+        print(answer)
+    elif(operator == "/"):
+        answer = var1 / var2
+        print(answer)
+    else:
+        answer = "wtf?"
+        print(answer)
+
+myCalculator()
