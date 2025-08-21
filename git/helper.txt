@@ -1,3 +1,5 @@
+If you’re committing on a feature branch (recommended)
+=======================
 # see what changed
 git status
 
@@ -12,3 +14,14 @@ git commit -m "New hero + avatar radar; WebAwesome timeline; reactive project ca
 
 # push the branch to GitHub
 git push -u origin portfolio-timeline
+
+
+
+If you’re committing directly to main
+====================
+git status
+git checkout main
+git pull --rebase
+git add index.html assets/css/style.css assets/js/script.js assets/img
+git commit -m "Update portfolio: hero, timeline, projects grid, theming"
+git push
