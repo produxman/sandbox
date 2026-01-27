@@ -1,0 +1,27 @@
+If you’re committing on a feature branch (recommended)
+=======================
+# see what changed
+git status
+
+# create/switch to a feature branch (skip if you already made one)
+git checkout -b portfolio-timeline
+
+# stage the three files (and any assets you added)
+git add index.html assets/css/style.css assets/js/script.js assets/img
+
+# commit
+git commit -m "New hero + avatar radar; WebAwesome timeline; reactive project cards; light/dark theme"
+
+# push the branch to GitHub
+git push -u origin portfolio-timeline
+
+
+
+If you’re committing directly to main
+====================
+git status
+git checkout main
+git pull --rebase
+git add index.html assets/css/style.css assets/js/script.js assets/img
+git commit -m "Update portfolio: hero, timeline, projects grid, theming"
+git push
