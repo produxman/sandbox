@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workout Tracker</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    textarea:focus { outline: 2px solid #22c55e; }
+    button:active { opacity: 0.85; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const REST_DEFAULT = 90;
+    const imgCache = {};
+    const DB_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/";
+    const DB_JSON = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json";
+    let exerciseDB = null;
+
+    async function loadDB() {
+      if (exerciseDB) return exerciseDB;
+      const res = await fetch(DB_JSON);
+      exerciseDB = await res.json();
+      return exerciseDB;
+    }
+
+    async function fetchExerciseImages(name) {
+      if (imgCache[name] !== undefined) return imgCache[name];
+      const db = await loadDB();
+      const q = name.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+      const words = q.split(" ").filter(w => w.length > 2);
+      let best = null, bestScore = 0;
+      for (const ex of db) {
+        const exName = ex.name.toLowerCase();
+        const score = words.filter(w => exName.includes(w)).length;
+        if (score > bestScore) { bestScore = score; best = ex; }
+      }
+      const result = best && bestScore > 0 && best.images?.length
+        ? { imgs: best.images.map(i => `${DB_BASE}${i}`), id: best.id, name: best.name }
+        : { imgs: [], id: null, name: null };
+      imgCache[name] = result;
+      return result;
+    }
+
+    function parseWorkout(text) {
+      const days = [];
+      let currentDay = null;
+      for (let line of text.split("\n")) {
+        line = line.trim();
+        if (!line) continue;
+        const dayMatch = line.match(/^#{1,3}\s*(.*)/);
+        if (dayMatch) {
+          currentDay = { title: dayMatch[1].trim(), exercises: [] };
+          days.push(currentDay);
+          continue;
+        }
+        if (!currentDay) { currentDay = { title: "Workout", exercises: [] }; days.push(currentDay); }
+        const exMatch = line.match(/^[-*•]?\s*(.+?):\s*(\d+)\s*[xX×]\s*(\d+(?:-\d+)?)\s*$/);
+        if (exMatch) {
+          const sets = parseInt(exMatch[2]);
+          currentDay.exercises.push({ id: Math.random().toString(36).slice(2), name: exMatch[1].trim(), sets, reps: exMatch[3], completedSets: Array(sets).fill(false) });
+        } else {
+          const clean = line.replace(/^[-*•]\s*/, "");
+          if (clean.length > 2) currentDay.exercises.push({ id: Math.random().toString(36).slice(2), name: clean, sets: 3, reps: "—", completedSets: [false, false, false] });
+        }
+      }
+      return days.filter(d => d.exercises.length > 0);
+    }
+
+    function RestTimer({ onDone }) {
+      const [secs, setSecs] = useState(REST_DEFAULT);
+      const ref = useRef();
+      useEffect(() => {
+        ref.current = setInterval(() => setSecs(s => { if (s <= 1) { clearInterval(ref.current); onDone(); return 0; } return s - 1; }), 1000);
+        return () => clearInterval(ref.current);
+      }, []);
+      const pct = (secs / REST_DEFAULT) * 100, r = 28, circ = 2 * Math.PI * r;
+      return (
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:"#f0fdf4", borderRadius:10, border:"1px solid #bbf7d0", marginTop:10 }}>
+          <svg width={68} height={68}>
+            <circle cx={34} cy={34} r={r} fill="none" stroke="#e2e8f0" strokeWidth={4} />
+            <circle cx={34} cy={34} r={r} fill="none" stroke="#22c55e" strokeWidth={4} strokeDasharray={circ} strokeDashoffset={circ*(1-pct/100)} strokeLinecap="round" transform="rotate(-90 34 34)" />
+            <text x={34} y={39} textAnchor="middle" fontSize={15} fontWeight="600" fill="#15803d">{secs}s</text>
+          </svg>
+          <div>
+            <div style={{ fontSize:13, fontWeight:600, color:"#15803d" }}>Rest Time</div>
+            <button onClick={() => { clearInterval(ref.current); onDone(); }} style={{ marginTop:4, fontSize:11, padding:"2px 10px", borderRadius:6, border:"1px solid #86efac", background:"white", color:"#15803d", cursor:"pointer" }}>Skip</button>
+          </div>
+        </div>
+      );
+    }
+
+    function ExerciseIllustration({ name }) {
+      const [result, setResult] = useState(null);
+      const [idx, setIdx] = useState(0);
+      const [loading, setLoading] = useState(false);
+      const [expanded, setExpanded] = useState(false);
+      const [error, setError] = useState(null);
+      const fetchedRef = useRef(false);
+
+      const load = async () => {
+        if (fetchedRef.current) return;
+        fetchedRef.current = true;
+        setLoading(true);
+        try { setResult(await fetchExerciseImages(name)); }
+        catch (e) { setError(e.message || "Failed to load"); }
+        setLoading(false);
+      };
+
+      const toggle = () => { if (!expanded && !fetchedRef.current) load(); setExpanded(e => !e); };
+      const prev = () => setIdx(i => (i - 1 + result.imgs.length) % result.imgs.length);
+      const next = () => setIdx(i => (i + 1) % result.imgs.length);
+      const folderUrl = result?.id ? `https://github.com/yuhonas/free-exercise-db/tree/main/exercises/${result.id}` : null;
+
+      return (
+        <div style={{ marginBottom:10 }}>
+          <button onClick={toggle} style={{ fontSize:11, color:"#64748b", background:"none", border:"1px solid #e2e8f0", borderRadius:6, padding:"3px 10px", cursor:"pointer", marginBottom: expanded ? 8 : 0 }}>
+            {expanded ? "▲ Hide demo" : "▼ Show demo"}
+          </button>
+          {expanded && (
+            <div style={{ borderRadius:10, border:"1px solid #e2e8f0", background:"#f8fafc", textAlign:"center", padding:12, minHeight:80 }}>
+              {loading ? (
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, height:80 }}>
+                  <div style={{ width:16, height:16, border:"2px solid #e2e8f0", borderTop:"2px solid #22c55e", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
+                  <span style={{ fontSize:12, color:"#94a3b8" }}>Loading…</span>
+                </div>
+              ) : error ? (
+                <p style={{ fontSize:12, color:"#ef4444", margin:0 }}>{error}</p>
+              ) : result?.imgs.length ? (
+                <>
+                  <img src={result.imgs[idx]} alt={`${name} step ${idx+1}`} style={{ maxWidth:"100%", maxHeight:220, borderRadius:8, objectFit:"contain", display:"block", margin:"0 auto" }} />
+                  {result.imgs.length > 1 && (
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:12, marginTop:8 }}>
+                      <button onClick={prev} style={{ width:28, height:28, borderRadius:"50%", border:"1px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
+                      <span style={{ fontSize:11, color:"#94a3b8" }}>{idx+1} / {result.imgs.length}</span>
+                      <button onClick={next} style={{ width:28, height:28, borderRadius:"50%", border:"1px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>›</button>
+                    </div>
+                  )}
+                  <div style={{ fontSize:10, color:"#94a3b8", marginTop:6 }}>
+                    Matched: <a href={folderUrl} target="_blank" rel="noopener noreferrer" style={{ color:"#22c55e", textDecoration:"none", fontWeight:600 }}>{result.id}</a>
+                  </div>
+                </>
+              ) : (
+                <p style={{ fontSize:12, color:"#94a3b8", margin:0 }}>No image found for "{name}"</p>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function ExerciseCard({ ex, onChange }) {
+      const [resting, setResting] = useState(false);
+      const allDone = ex.completedSets.every(Boolean);
+      const toggleSet = (i) => {
+        const updated = [...ex.completedSets];
+        const wasComplete = updated[i];
+        updated[i] = !updated[i];
+        onChange({ ...ex, completedSets: updated });
+        if (!wasComplete && !resting) setResting(true);
+      };
+      return (
+        <div style={{ background: allDone ? "#f0fdf4" : "white", border:`1px solid ${allDone ? "#bbf7d0" : "#e2e8f0"}`, borderRadius:12, padding:"14px 16px", marginBottom:10, transition:"all 0.2s" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+            <div>
+              <div style={{ fontWeight:600, fontSize:15, color: allDone ? "#15803d" : "#1e293b", display:"flex", alignItems:"center", gap:6 }}>
+                {allDone && <span>✓</span>}{ex.name}
+              </div>
+              <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>{ex.sets} sets × {ex.reps} reps</div>
+            </div>
+            <div style={{ fontSize:12, color:"#94a3b8" }}>{ex.completedSets.filter(Boolean).length}/{ex.sets} sets</div>
+          </div>
+          <ExerciseIllustration name={ex.name} />
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {ex.completedSets.map((done, i) => (
+              <button key={i} onClick={() => toggleSet(i)} style={{ width:38, height:38, borderRadius:8, border:`2px solid ${done ? "#22c55e" : "#e2e8f0"}`, background: done ? "#22c55e" : "white", color: done ? "white" : "#94a3b8", fontWeight:700, fontSize:13, cursor:"pointer", transition:"all 0.15s" }}>
+                {done ? "✓" : i+1}
+              </button>
+            ))}
+          </div>
+          {resting && <RestTimer onDone={() => setResting(false)} />}
+        </div>
+      );
+    }
+
+    function WorkoutDay({ day, onUpdate }) {
+      const total = day.exercises.reduce((a,e) => a+e.sets, 0);
+      const done = day.exercises.reduce((a,e) => a+e.completedSets.filter(Boolean).length, 0);
+      const pct = total ? Math.round((done/total)*100) : 0;
+      return (
+        <div>
+          <div style={{ marginBottom:16 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#64748b", marginBottom:6 }}>
+              <span>{done}/{total} sets complete</span><span>{pct}%</span>
+            </div>
+            <div style={{ background:"#e2e8f0", borderRadius:99, height:6 }}>
+              <div style={{ background:"#22c55e", height:6, borderRadius:99, width:`${pct}%`, transition:"width 0.3s" }} />
+            </div>
+          </div>
+          {day.exercises.map(ex => (
+            <ExerciseCard key={ex.id} ex={ex} onChange={updated => onUpdate({ ...day, exercises: day.exercises.map(e => e.id===updated.id ? updated : e) })} />
+          ))}
+          {pct===100 && <div style={{ textAlign:"center", padding:20, color:"#15803d", fontWeight:700, fontSize:16 }}>🎉 Day complete! Great work!</div>}
+        </div>
+      );
+    }
+
+    const SAMPLE = `## Day 1 - Push
+- Bench Press: 4x8
+- Overhead Press: 3x10
+- Lateral Raises: 3x15
+- Tricep Pushdown: 3x12
+
+## Day 2 - Pull
+- Deadlift: 3x5
+- Pull-ups: 4x8
+- Barbell Row: 3x8
+- Bicep Curls: 3x12
+
+## Day 3 - Legs
+- Squat: 4x6
+- Romanian Deadlift: 3x10
+- Leg Press: 3x12
+- Calf Raises: 4x15`;
+
+    function App() {
+      const [screen, setScreen] = useState("paste");
+      const [text, setText] = useState("");
+      const [days, setDays] = useState([]);
+      const [activeDay, setActiveDay] = useState(0);
+
+      const handleLoad = (t) => {
+        const parsed = parseWorkout(t);
+        if (!parsed.length) { alert("Couldn't parse any exercises. Check the format and try again."); return; }
+        setDays(parsed); setActiveDay(0); setScreen("workout");
+      };
+
+      if (screen === "paste") return (
+        <div style={{ minHeight:"100vh", background:"#f8fafc", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ width:"100%", maxWidth:560 }}>
+            <div style={{ textAlign:"center", marginBottom:28 }}>
+              <div style={{ fontSize:32, marginBottom:8 }}>💪</div>
+              <h1 style={{ fontSize:22, fontWeight:700, color:"#0f172a" }}>Workout Tracker</h1>
+              <p style={{ color:"#64748b", fontSize:14, marginTop:6 }}>Paste your workout plan below to get started</p>
+            </div>
+            <div style={{ background:"white", borderRadius:16, border:"1px solid #e2e8f0", padding:20, boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
+              <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:8, letterSpacing:"0.05em", textTransform:"uppercase" }}>Your Workout Plan</div>
+              <textarea value={text} onChange={e => setText(e.target.value)}
+                placeholder={"Paste your plan here. Example:\n\n## Day 1 - Push\n- Bench Press: 4x8\n- Overhead Press: 3x10\n\n## Day 2 - Pull\n- Pull-ups: 4x8"}
+                style={{ width:"100%", minHeight:220, border:"1px solid #e2e8f0", borderRadius:10, padding:"10px 12px", fontSize:13, fontFamily:"monospace", resize:"vertical", color:"#1e293b", lineHeight:1.6, boxSizing:"border-box" }} />
+              <div style={{ display:"flex", gap:10, marginTop:14 }}>
+                <button onClick={() => handleLoad(text)} disabled={!text.trim()}
+                  style={{ flex:1, padding:"11px 0", background: text.trim() ? "#22c55e" : "#e2e8f0", color: text.trim() ? "white" : "#94a3b8", border:"none", borderRadius:10, fontWeight:700, fontSize:14, cursor: text.trim() ? "pointer" : "not-allowed" }}>
+                  Start Workout →
+                </button>
+                <button onClick={() => setText(SAMPLE)}
+                  style={{ padding:"11px 16px", background:"white", color:"#64748b", border:"1px solid #e2e8f0", borderRadius:10, fontWeight:600, fontSize:13, cursor:"pointer" }}>
+                  Load Sample
+                </button>
+              </div>
+            </div>
+            <p style={{ textAlign:"center", fontSize:12, color:"#94a3b8", marginTop:14 }}>
+              Format: <code style={{ background:"#f1f5f9", padding:"1px 5px", borderRadius:4 }}>- Exercise Name: 3x10</code>
+            </p>
+          </div>
+        </div>
+      );
+
+      const day = days[activeDay];
+      return (
+        <div style={{ minHeight:"100vh", background:"#f8fafc" }}>
+          <div style={{ background:"white", borderBottom:"1px solid #e2e8f0", padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ fontSize:20 }}>💪</span>
+              <span style={{ fontWeight:700, fontSize:16, color:"#0f172a" }}>Workout Tracker</span>
+            </div>
+            <button onClick={() => { setScreen("paste"); setText(""); setDays([]); }}
+              style={{ fontSize:12, color:"#64748b", background:"none", border:"1px solid #e2e8f0", borderRadius:8, padding:"5px 12px", cursor:"pointer" }}>
+              ← New Plan
+            </button>
+          </div>
+          <div style={{ overflowX:"auto", borderBottom:"1px solid #e2e8f0", background:"white" }}>
+            <div style={{ display:"flex", padding:"0 12px", gap:4, minWidth:"max-content" }}>
+              {days.map((d, i) => {
+                const t = d.exercises.reduce((a,e) => a+e.sets, 0);
+                const dn = d.exercises.reduce((a,e) => a+e.completedSets.filter(Boolean).length, 0);
+                const pct = t ? Math.round((dn/t)*100) : 0;
+                return (
+                  <button key={i} onClick={() => setActiveDay(i)} style={{ padding:"10px 14px", fontSize:13, fontWeight: activeDay===i ? 700 : 500, color: activeDay===i ? "#15803d" : "#64748b", background:"none", border:"none", borderBottom: activeDay===i ? "2px solid #22c55e" : "2px solid transparent", cursor:"pointer", whiteSpace:"nowrap" }}>
+                    {d.title} {pct===100 ? "✓" : pct>0 ? `${pct}%` : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ maxWidth:560, margin:"0 auto", padding:"16px 16px 40px" }}>
+            <h2 style={{ fontSize:17, fontWeight:700, color:"#0f172a", marginBottom:14 }}>{day.title}</h2>
+            <WorkoutDay day={day} onUpdate={updated => setDays(days.map((d,i) => i===activeDay ? updated : d))} />
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
