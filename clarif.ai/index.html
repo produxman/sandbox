@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>clarif.ai — speak every department's language</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f9f9f8;
+      --surface: #ffffff;
+      --surface2: #f4f4f2;
+      --border: rgba(0,0,0,0.1);
+      --border2: rgba(0,0,0,0.18);
+      --text: #1a1a18;
+      --text2: #6b6b68;
+      --text3: #a0a09d;
+      --green: #2BAC76;
+      --green-bg: #e8f7f1;
+      --green-text: #0f6e49;
+      --blue: #1164A3;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-mono: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a18;
+        --surface: #242422;
+        --surface2: #2e2e2c;
+        --border: rgba(255,255,255,0.1);
+        --border2: rgba(255,255,255,0.18);
+        --text: #f0f0ee;
+        --text2: #a0a09d;
+        --text3: #6b6b68;
+        --green-bg: #0d3d27;
+        --green-text: #5dcaa5;
+      }
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── TOP NAV ── */
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .nav-logo {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      font-family: var(--font-mono);
+    }
+
+    .nav-logo span { color: var(--green); }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .api-key-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface2);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-md);
+      padding: 6px 12px;
+    }
+
+    .api-key-wrap label {
+      font-size: 12px;
+      color: var(--text2);
+      white-space: nowrap;
+    }
+
+    .api-key-input {
+      border: none;
+      background: transparent;
+      font-size: 12px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      width: 220px;
+      outline: none;
+    }
+
+    .api-key-input::placeholder { color: var(--text3); }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text3);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .status-dot.active { background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .toggle {
+      position: relative;
+      width: 32px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .tog-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--border2);
+      border-radius: 18px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .tog-slider::before {
+      content: '';
+      position: absolute;
+      width: 14px; height: 14px;
+      left: 2px; bottom: 2px;
+      background: white;
+      border-radius: 50%;
+      transition: transform .2s;
+    }
+    input:checked + .tog-slider { background: var(--green); }
+    input:checked + .tog-slider::before { transform: translateX(14px); }
+
+    /* ── LAYOUT ── */
+    .app {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 57px);
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 220px;
+      background: #3F0E40;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sb-workspace {
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sb-workspace-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #fff;
+    }
+
+    .sb-section { padding: 16px 0 4px; }
+
+    .sb-section-label {
+      font-size: 11px;
+      color: rgba(255,255,255,0.4);
+      padding: 0 16px;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin-bottom: 4px;
+    }
+
+    .sb-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 16px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      transition: background .1s;
+    }
+    .sb-item:hover { background: rgba(255,255,255,0.07); }
+    .sb-item.active { background: #1164A3; color: #fff; }
+    .sb-hash { font-size: 15px; opacity: .55; }
+
+    .sb-footer {
+      margin-top: auto;
+      padding: 12px 16px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .sb-brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .sb-brand-pill {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.85);
+      font-weight: 500;
+    }
+
+    /* ── MAIN CHAT ── */
+    .chat-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: var(--surface);
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-bottom: 0.5px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .chat-header-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .chat-hash { font-size: 16px; color: var(--text3); }
+
+    .members-badge {
+      font-size: 11px;
+      color: var(--text2);
+      background: var(--surface2);
+      border: 0.5px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 10px;
+    }
+
+    /* ── MESSAGES ── */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .msg {
+      display: flex;
+      gap: 12px;
+    }
+
+    .msg-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: #fff;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .msg-content { flex: 1; min-width: 0; }
+
+    .msg-meta {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
+    .msg-name { font-size: 13px; font-weight: 500; }
+
+    .msg-dept {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+
+    .msg-time { font-size: 11px; color: var(--text3); }
+
+    .msg-text { font-size: 13px; line-height: 1.65; color: var(--text); }
+
+    /* ── CLARIF FOOTER ── */
+    .clarif-logo-text {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--green);
+      font-family: var(--font-mono);
+      letter-spacing: .02em;
+    }
+
+    .clarif-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 7px;
+    }
+
+    .see-original-btn {
+      font-size: 11px;
+      color: var(--text3);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      font-family: var(--font);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .see-original-btn:hover { color: var(--text2); }
+
+    .msg-original {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: var(--surface2);
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text2);
+      font-style: italic;
+    }
+
+    .loading-dots {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .loading-dots span {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: dotblink 1.2s infinite;
+    }
+    .loading-dots span:nth-child(2) { animation-delay: .2s; }
+    .loading-dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes dotblink { 0%,80%,100%{opacity:.15} 40%{opacity:1} }
+
+    /* ── COMPOSER ── */
+    .composer {
+      padding: 12px 20px;
+      border-top: 0.5px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .composer-box {
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .composer-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-bottom: 0.5px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .composer-label { font-size: 11px; color: var(--text3); }
+
+    .dept-select {
+      font-size: 12px;
+      background: var(--surface2);
+      border: 0.5px solid var(--border);
+      color: var(--text2);
+      border-radius: var(--radius-md);
+      padding: 4px 10px;
+      cursor: pointer;
+      outline: none;
+      font-family: var(--font);
+    }
+
+    .composer-textarea {
+      width: 100%;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      color: var(--text);
+      padding: 10px 14px;
+      resize: none;
+      font-family: var(--font);
+      outline: none;
+      line-height: 1.6;
+    }
+
+    .composer-textarea::placeholder { color: var(--text3); }
+
+    .composer-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 12px;
+      border-top: 0.5px solid var(--border);
+    }
+
+    .composer-hint { font-size: 11px; color: var(--text3); }
+
+    .send-btn {
+      font-size: 12px;
+      font-weight: 500;
+      color: #fff;
+      background: var(--blue);
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 6px 16px;
+      cursor: pointer;
+      transition: opacity .15s;
+      font-family: var(--font);
+    }
+
+    .send-btn:hover { opacity: .85; }
+    .send-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* ── API KEY BANNER ── */
+    .api-banner {
+      background: #fff8e6;
+      border: 0.5px solid #f0c040;
+      border-radius: var(--radius-md);
+      padding: 10px 16px;
+      font-size: 12px;
+      color: #7a5a00;
+      margin: 16px 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .api-banner.hidden { display: none; }
+    .api-banner a { color: #7a5a00; }
+
+    /* ── CLEAR BUTTON ── */
+    .clear-btn {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text2);
+      background: var(--surface2);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-md);
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      font-family: var(--font);
+    }
+    .clear-btn:hover { background: #fde8e8; color: #b91c1c; border-color: #f8b4b4; }
+
+    /* ── RANDOM MESSAGE BUTTON ── */
+    .random-btn {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text2);
+      background: var(--surface2);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-md);
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+      font-family: var(--font);
+    }
+    .random-btn:hover { background: #e8f0fe; color: #1a56c4; border-color: #a8c0f8; }
+
+    /* ── SCROLLBAR ── */
+    .messages::-webkit-scrollbar { width: 4px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+    .messages::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="nav">
+  <div class="nav-logo">clarif<span>.ai</span></div>
+  <div class="nav-right">
+    <div class="api-key-wrap">
+      <div class="status-dot" id="status-dot"></div>
+      <label for="api-key-input">API Key</label>
+      <input
+        type="password"
+        class="api-key-input"
+        id="api-key-input"
+        placeholder="sk-ant-..."
+        autocomplete="off"
+        oninput="handleApiKeyInput(this.value)"
+      />
+    </div>
+    <div class="toggle-wrap">
+      <label class="toggle">
+        <input type="checkbox" id="clarif-toggle" checked onchange="toggleClarif(this.checked)">
+        <span class="tog-slider"></span>
+      </label>
+      clarif.ai
+    </div>
+  </div>
+</nav>
+
+<!-- APP SHELL -->
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-workspace">
+      <div class="status-dot active" style="flex-shrink:0"></div>
+      <span class="sb-workspace-name">Acme Corp</span>
+    </div>
+    <div class="sb-section">
+      <div class="sb-section-label">Channels</div>
+      <div class="sb-item"><span class="sb-hash">#</span>general</div>
+      <div class="sb-item active"><span class="sb-hash">#</span>product-eng</div>
+      <div class="sb-item"><span class="sb-hash">#</span>design</div>
+      <div class="sb-item"><span class="sb-hash">#</span>launches</div>
+      <div class="sb-item"><span class="sb-hash">#</span>finance-sync</div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-section-label">Direct messages</div>
+      <div class="sb-item">
+        <div style="width:14px;height:14px;border-radius:3px;background:#1164A3;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:500;color:#fff;flex-shrink:0">JK</div>
+        James K.
+      </div>
+      <div class="sb-item">
+        <div style="width:14px;height:14px;border-radius:3px;background:#7B3FB0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:500;color:#fff;flex-shrink:0">SR</div>
+        Sara R.
+      </div>
+    </div>
+    <div class="sb-footer">
+      <div class="sb-brand">
+        <div class="status-dot active"></div>
+        <div class="sb-brand-pill">clarif.ai active</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CHAT -->
+  <main class="chat-main">
+    <div class="chat-header">
+      <div class="chat-header-title">
+        <span class="chat-hash">#</span>
+        product-eng
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="members-badge">6 members</div>
+        <button class="random-btn" onclick="randomMessage()">Random message</button>
+        <button class="clear-btn" onclick="clearMessages()">Clear all messages</button>
+      </div>
+    </div>
+
+    <!-- API KEY WARNING BANNER -->
+    <div class="api-banner" id="api-banner">
+      ⚠ Enter your Anthropic API key above to enable live translation.
+      Get one at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.
+    </div>
+
+    <div class="messages" id="messages">
+
+      <!-- Seed message 1 -->
+      <div class="msg">
+        <div class="msg-avatar" style="background:#D85A30">EN</div>
+        <div class="msg-content">
+          <div class="msg-meta">
+            <span class="msg-name">Alex M.</span>
+            <span class="msg-dept" style="background:#FAECE7;color:#993C1D">Engineering</span>
+            <span class="msg-time">10:02 AM</span>
+          </div>
+          <div class="msg-text msg-translated">Good news — the payment bug is fixed. Two parts of the system were trying to update the same data at the same time and crashing into each other. The fix makes each update wait its turn and retry automatically if there's a conflict.</div>
+          <div class="msg-original" style="display:none">Fixed the race condition in the payment service — it was a deadlock between the mutex on the transaction ledger and the async write-back to the cache. Resolved it with optimistic locking and retry backoff.</div>
+          <div class="clarif-footer">
+            <span class="clarif-logo-text">clarif.ai</span>
+            <button class="see-original-btn" onclick="toggleOriginal(this)">See original</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seed message 2 -->
+      <div class="msg">
+        <div class="msg-avatar" style="background:#1164A3">PM</div>
+        <div class="msg-content">
+          <div class="msg-meta">
+            <span class="msg-name">Sara R.</span>
+            <span class="msg-dept" style="background:#E6F1FB;color:#185FA5">Product</span>
+            <span class="msg-time">10:08 AM</span>
+          </div>
+          <div class="msg-text msg-translated">Will this change the 99th percentile response time on the checkout endpoint? That's a key metric we're tracking this quarter.</div>
+          <div class="msg-original" style="display:none">Nice! Will this affect our P99 latency on checkout? We've been tracking that for the Q2 OKR.</div>
+          <div class="clarif-footer">
+            <span class="clarif-logo-text">clarif.ai</span>
+            <button class="see-original-btn" onclick="toggleOriginal(this)">See original</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seed message 3 -->
+      <div class="msg">
+        <div class="msg-avatar" style="background:#0F6E56">FN</div>
+        <div class="msg-content">
+          <div class="msg-meta">
+            <span class="msg-name">Tom B.</span>
+            <span class="msg-dept" style="background:#E1F5EE;color:#0F6E56">Finance</span>
+            <span class="msg-time">10:15 AM</span>
+          </div>
+          <div class="msg-text msg-translated">Our profitability is shrinking because the new vendor contracts cost more than expected. The CFO wants us to prepare three financial projections (optimistic, realistic, pessimistic) showing how profits could change — this goes into the board presentation.</div>
+          <div class="msg-original" style="display:none">Our EBITDA margins are compressing due to elevated COGS from the new vendor contracts, and the CFO wants us to model out base, bear, and bull case scenarios with sensitivity analysis on gross margin for the board deck.</div>
+          <div class="clarif-footer">
+            <span class="clarif-logo-text">clarif.ai</span>
+            <button class="see-original-btn" onclick="toggleOriginal(this)">See original</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="dynamic-messages"></div>
+    </div>
+
+    <!-- COMPOSER -->
+    <div class="composer">
+      <div class="composer-box">
+        <div class="composer-controls">
+          <span class="composer-label">Sending as</span>
+          <select class="dept-select" id="sender-dept">
+            <option value="Engineering">Engineering</option>
+            <option value="Product" selected>Product</option>
+            <option value="Design">Design</option>
+            <option value="Finance">Finance</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Sales">Sales</option>
+            <option value="HR & People">HR & People</option>
+            <option value="Legal">Legal</option>
+            <option value="Operations">Operations</option>
+            <option value="Data & Analytics">Data & Analytics</option>
+            <option value="Customer Success">Customer Success</option>
+            <option value="Executive Leadership">Executive Leadership</option>
+            <option value="Noob">Noob 👶</option>
+          </select>
+          <span class="composer-label">translating for</span>
+          <select class="dept-select" id="receiver-dept">
+            <option value="Engineering" selected>Engineering</option>
+            <option value="Product">Product</option>
+            <option value="Design">Design</option>
+            <option value="Finance">Finance</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Sales">Sales</option>
+            <option value="HR & People">HR & People</option>
+            <option value="Legal">Legal</option>
+            <option value="Operations">Operations</option>
+            <option value="Data & Analytics">Data & Analytics</option>
+            <option value="Customer Success">Customer Success</option>
+            <option value="Executive Leadership">Executive Leadership</option>
+            <option value="Noob">Noob 👶</option>
+          </select>
+        </div>
+        <textarea
+          class="composer-textarea"
+          id="composer-input"
+          rows="2"
+          placeholder="Paste a jargon-heavy message and hit send..."
+        ></textarea>
+        <div class="composer-actions">
+          <span class="composer-hint">Press Enter to send · Shift+Enter for new line</span>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">Translate + Send</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  /* ── DEPT CONFIG ── */
+  const DEPTS = {
+    'Engineering':          { initials:'EN', color:'#D85A30', bg:'#FAECE7', text:'#993C1D' },
+    'Product':              { initials:'PM', color:'#1164A3', bg:'#E6F1FB', text:'#185FA5' },
+    'Design':               { initials:'DS', color:'#7B3FB0', bg:'#EEEDFE', text:'#534AB7' },
+    'Finance':              { initials:'FN', color:'#0F6E56', bg:'#E1F5EE', text:'#0F6E56' },
+    'Marketing':            { initials:'MK', color:'#D4537E', bg:'#FBEAF0', text:'#993556' },
+    'Sales':                { initials:'SL', color:'#BA7517', bg:'#FAEEDA', text:'#854F0B' },
+    'HR & People':          { initials:'HR', color:'#378ADD', bg:'#E6F1FB', text:'#185FA5' },
+    'Legal':                { initials:'LG', color:'#5F5E5A', bg:'#F1EFE8', text:'#444441' },
+    'Operations':           { initials:'OP', color:'#3B6D11', bg:'#EAF3DE', text:'#3B6D11' },
+    'Data & Analytics':     { initials:'DA', color:'#534AB7', bg:'#EEEDFE', text:'#534AB7' },
+    'Customer Success':     { initials:'CS', color:'#993C1D', bg:'#FAECE7', text:'#993C1D' },
+    'Executive Leadership': { initials:'EX', color:'#2C2C2A', bg:'#F1EFE8', text:'#444441' },
+    'Noob':                 { initials:'NB', color:'#E53E8C', bg:'#FDEAF4', text:'#9C1A5E' },
+  };
+
+  /* ── STATE ── */
+  let apiKey = localStorage.getItem('clarif_api_key') || '';
+  let clarifEnabled = true;
+
+  /* ── INIT ── */
+  window.addEventListener('DOMContentLoaded', () => {
+    if (apiKey) {
+      document.getElementById('api-key-input').value = apiKey;
+      document.getElementById('status-dot').classList.add('active');
+      document.getElementById('api-banner').classList.add('hidden');
+    }
+  });
+
+  /* ── API KEY ── */
+  function handleApiKeyInput(val) {
+    apiKey = val.trim();
+    localStorage.setItem('clarif_api_key', apiKey);
+    const dot = document.getElementById('status-dot');
+    const banner = document.getElementById('api-banner');
+    if (apiKey.startsWith('sk-ant-')) {
+      dot.classList.add('active');
+      banner.classList.add('hidden');
+    } else {
+      dot.classList.remove('active');
+      banner.classList.remove('hidden');
+    }
+  }
+
+  /* ── TOGGLE ── */
+  function toggleClarif(on) {
+    clarifEnabled = on;
+    document.querySelectorAll('.msg-content').forEach(content => {
+      const translated = content.querySelector('.msg-translated');
+      const original = content.querySelector('.msg-original');
+      const footer = content.querySelector('.clarif-footer');
+      if (!translated) return;
+      if (on) {
+        translated.style.display = 'block';
+        if (original) original.style.display = 'none';
+        if (footer) footer.style.display = 'flex';
+        const btn = footer && footer.querySelector('.see-original-btn');
+        if (btn) btn.textContent = 'See original';
+      } else {
+        translated.style.display = 'none';
+        if (original) original.style.display = 'block';
+        if (footer) footer.style.display = 'none';
+      }
+    });
+  }
+
+  /* ── TIMESTAMP ── */
+  function now() {
+    const d = new Date();
+    let h = d.getHours(), m = d.getMinutes();
+    const s = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m < 10 ? '0' + m : m} ${s}`;
+  }
+
+  /* ── SEND ── */
+  async function sendMessage() {
+    const input = document.getElementById('composer-input');
+    const sender = document.getElementById('sender-dept').value;
+    const receiver = document.getElementById('receiver-dept').value;
+    const text = input.value.trim();
+    if (!text) return;
+
+    const btn = document.getElementById('send-btn');
+    btn.disabled = true;
+    input.value = '';
+
+    const st = DEPTS[sender] || { initials:'??', color:'#888', bg:'#eee', text:'#333' };
+    const msgId = 'msg-' + Date.now();
+
+    const container = document.getElementById('dynamic-messages');
+    const div = document.createElement('div');
+    div.className = 'msg';
+    div.id = msgId;
+    div.innerHTML = `
+      <div class="msg-avatar" style="background:${st.color}">${st.initials}</div>
+      <div class="msg-content">
+        <div class="msg-meta">
+          <span class="msg-name">${escHtml(sender)}</span>
+          <span class="msg-dept" style="background:${st.bg};color:${st.text}">${escHtml(sender)}</span>
+          <span class="msg-time">${now()}</span>
+        </div>
+        ${clarifEnabled ? `
+        <div class="msg-text msg-translated" id="clt-${msgId}">
+          <div class="loading-dots"><span></span><span></span><span></span></div>
+        </div>
+        <div class="msg-original" style="display:none">${escHtml(text)}</div>
+        <div class="clarif-footer">
+          <span class="clarif-logo-text">clarif.ai</span>
+          <button class="see-original-btn" onclick="toggleOriginal(this)">See original</button>
+        </div>` : `<div class="msg-text">${escHtml(text)}</div>`}
+      </div>`;
+    container.appendChild(div);
+    div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+    if (!clarifEnabled) { btn.disabled = false; return; }
+
+    if (!apiKey || !apiKey.startsWith('sk-ant-')) {
+      document.getElementById('clt-' + msgId).textContent = 'Add your Anthropic API key in the top bar to enable translation.';
+      btn.disabled = false;
+      return;
+    }
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: `You are clarif.ai, an intelligent Slack message translator embedded in a company workspace. Your job is to rewrite messages from one department so they are clearly understood by someone in a different department — preserving the full meaning and accuracy, but translating the vocabulary, tone, and framing to match how the receiving department thinks and communicates. Be concise. Output only the rewritten message text. No preamble, no explanation, no labels.`,
+          messages: [{
+            role: 'user',
+            content: receiver === 'Noob'
+              ? `Sender department: ${sender}\n\nOriginal message:\n${text}\n\nRewrite this message so a 5-year-old could understand it. Use the simplest possible words, very short sentences, and fun analogies or comparisons to everyday things kids know (like toys, food, or games). No jargon whatsoever. Keep it warm and friendly.`
+              : `Sender department: ${sender}\nReceiver department: ${receiver}\n\nOriginal message:\n${text}\n\nRewrite this message so it is perfectly clear to someone in ${receiver}. Match their vocabulary, priorities, and level of technical or business detail. Keep it natural and conversational.`
+          }]
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `API error ${res.status}`);
+      }
+
+      const data = await res.json();
+      const translated = (data.content?.[0]?.text || 'Could not translate.').replace(/^["']+|["']+$/g, '');
+      const el = document.getElementById('clt-' + msgId);
+      if (el) el.textContent = translated;
+
+    } catch (e) {
+      const el = document.getElementById('clt-' + msgId);
+      if (el) el.textContent = `Error: ${e.message}`;
+    }
+
+    btn.disabled = false;
+  }
+
+  /* ── KEYBOARD SHORTCUT ── */
+  document.addEventListener('keydown', function(e) {
+    if (e.target.id === 'composer-input' && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  /* ── TOGGLE ORIGINAL ── */
+  function toggleOriginal(btn) {
+    const content = btn.closest('.msg-content');
+    const original = content.querySelector('.msg-original');
+    const isVisible = original.style.display !== 'none';
+    original.style.display = isVisible ? 'none' : 'block';
+    btn.textContent = isVisible ? 'See original' : 'Hide original';
+  }
+
+  /* ── RANDOM MESSAGE DATA ── */
+  const RANDOM_NAMES = ['Jordan L.', 'Maya T.', 'Chris W.', 'Priya N.', 'Sam K.', 'Dana R.', 'Leo M.', 'Fiona B.', 'Omar S.', 'Tessa G.'];
+  const RANDOM_POOL = [
+    { dept:'Engineering', text:'We need to refactor the monolith into microservices before we can horizontally scale — the current tight coupling between the auth layer and the data access layer is causing cascading failures under peak load.' },
+    { dept:'Engineering', text:'The CI/CD pipeline is failing on the integration tests because the test environment lacks prod parity — flaky tests are surfacing due to race conditions in the async event handlers.' },
+    { dept:'Finance', text:'Our burn rate has accelerated due to Q3 headcount expansion, and we are now projecting a 14-month runway assuming current ARR growth holds. We need to revisit CAC payback period before the next board review.' },
+    { dept:'Finance', text:'The accruals for the SaaS contracts need to be reclassified to deferred revenue — we have a timing mismatch between cash receipts and revenue recognition under ASC 606.' },
+    { dept:'Product', text:'We need to prioritize against our North Star metric — the current sprint is over-indexed on tech debt and we are losing velocity on Q2 OKR initiatives.' },
+    { dept:'Product', text:'The activation funnel shows a significant drop-off at the aha moment — we need cohort analysis to determine whether it is a UX issue or a value prop misalignment.' },
+    { dept:'Marketing', text:'Our MQL-to-SQL conversion is degrading because top-of-funnel content is not resonating with our ICP — we need to realign around pain-point-led narratives and tighten attribution.' },
+    { dept:'Sales', text:'The deal is stuck in legal because procurement is pushing back on the MSA indemnification clause. We need to get creative on commercial terms and loop in CSM to show adoption metrics that de-risk the expansion.' },
+    { dept:'Legal', text:"The vendor's DPA does not align with our GDPR Article 28 obligations — we need to negotiate standard contractual clauses and ensure sub-processor disclosures are current before executing." },
+    { dept:'Data & Analytics', text:'The DAU/MAU ratio is trending down, suggesting retention is the bottleneck — we need to segment by acquisition cohort and run survival analysis to identify where churn is accelerating.' },
+    { dept:'HR & People', text:'Our eNPS scores correlate strongly with manager effectiveness ratings, and 360 feedback is surfacing low psychological safety scores in two squads — targeted interventions are needed before attrition risk materializes.' },
+    { dept:'Operations', text:'The SLA breach rate on Tier 2 tickets is trending up because our escalation matrix is not aligned with the new org structure — we need to update the RACI and re-run runbook training before peak season.' },
+    { dept:'Design', text:'The design system lacks responsive token mappings for our new density scale — without it, we cannot implement the adaptive layout spec and the component library will continue drifting from the Figma source of truth.' },
+    { dept:'Customer Success', text:'Our NRR is being dragged down by logo churn in the mid-market segment — QBR cadence is too infrequent to catch risk signals early enough, and our health score model is not weighting product adoption signals correctly.' },
+    { dept:'Executive Leadership', text:'We need to pressure-test our GTM assumptions for the enterprise segment before committing to the revised headcount plan — the unit economics only work if we hit the assumed ACV and maintain sub-15 month payback.' },
+  ];
+
+  /* ── RANDOM MESSAGE ── */
+  async function randomMessage() {
+    const entry = RANDOM_POOL[Math.floor(Math.random() * RANDOM_POOL.length)];
+    const name  = RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)];
+    const receiver = document.getElementById('receiver-dept').value;
+    const sender = entry.dept;
+    const text = entry.text;
+
+    const st = DEPTS[sender] || { initials:'??', color:'#888', bg:'#eee', text:'#333' };
+    const msgId = 'msg-' + Date.now();
+
+    const container = document.getElementById('dynamic-messages');
+    const div = document.createElement('div');
+    div.className = 'msg';
+    div.id = msgId;
+    div.innerHTML = `
+      <div class="msg-avatar" style="background:${st.color}">${st.initials}</div>
+      <div class="msg-content">
+        <div class="msg-meta">
+          <span class="msg-name">${escHtml(name)}</span>
+          <span class="msg-dept" style="background:${st.bg};color:${st.text}">${escHtml(sender)}</span>
+          <span class="msg-time">${now()}</span>
+        </div>
+        ${clarifEnabled ? `
+        <div class="msg-text msg-translated" id="clt-${msgId}">
+          <div class="loading-dots"><span></span><span></span><span></span></div>
+        </div>
+        <div class="msg-original" style="display:none">${escHtml(text)}</div>
+        <div class="clarif-footer">
+          <span class="clarif-logo-text">clarif.ai</span>
+          <button class="see-original-btn" onclick="toggleOriginal(this)">See original</button>
+        </div>` : `<div class="msg-text">${escHtml(text)}</div>`}
+      </div>`;
+    container.appendChild(div);
+    div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+    if (!clarifEnabled) return;
+
+    if (!apiKey || !apiKey.startsWith('sk-ant-')) {
+      document.getElementById('clt-' + msgId).textContent = 'Add your Anthropic API key in the top bar to enable translation.';
+      return;
+    }
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: `You are clarif.ai, an intelligent Slack message translator embedded in a company workspace. Your job is to rewrite messages from one department so they are clearly understood by someone in a different department — preserving the full meaning and accuracy, but translating the vocabulary, tone, and framing to match how the receiving department thinks and communicates. Be concise. Output only the rewritten message text. No preamble, no explanation, no labels.`,
+          messages: [{
+            role: 'user',
+            content: receiver === 'Noob'
+              ? `Sender department: ${sender}\n\nOriginal message:\n${text}\n\nRewrite this message so a 5-year-old could understand it. Use the simplest possible words, very short sentences, and fun analogies or comparisons to everyday things kids know (like toys, food, or games). No jargon whatsoever. Keep it warm and friendly.`
+              : `Sender department: ${sender}\nReceiver department: ${receiver}\n\nOriginal message:\n${text}\n\nRewrite this message so it is perfectly clear to someone in ${receiver}. Match their vocabulary, priorities, and level of technical or business detail. Keep it natural and conversational.`
+          }]
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `API error ${res.status}`);
+      }
+
+      const data = await res.json();
+      const translated = (data.content?.[0]?.text || 'Could not translate.').replace(/^["']+|["']+$/g, '');
+      const el = document.getElementById('clt-' + msgId);
+      if (el) el.textContent = translated;
+    } catch (e) {
+      const el = document.getElementById('clt-' + msgId);
+      if (el) el.textContent = `Error: ${e.message}`;
+    }
+  }
+
+  /* ── CLEAR MESSAGES ── */
+  function clearMessages() {
+    document.getElementById('messages').innerHTML = '<div id="dynamic-messages"></div>';
+  }
+
+  /* ── ESCAPE HTML ── */
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
