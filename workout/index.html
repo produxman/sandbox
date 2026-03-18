@@ -2,16 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>Workout Tracker</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; -webkit-text-size-adjust: 100%; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    textarea, input, select { font-size: 16px !important; } /* prevent iOS autozoom */
     textarea:focus { outline: 2px solid #22c55e; }
+    button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
     button:active { opacity: 0.85; }
   </style>
 </head>
@@ -64,7 +66,7 @@
           continue;
         }
         if (!currentDay) { currentDay = { title: "Workout", exercises: [] }; days.push(currentDay); }
-        const exMatch = line.match(/^[-*•]?\s*(.+?):\s*(\d+)\s*[xX×]\s*(\d+(?:-\d+)?)\s*$/);
+        const exMatch = line.match(/^[-*•]?\s*(.+?):\s*(\d+)\s*[xX×]\s*(\d+(?:[-.:]\d+)?(?:[a-zA-Z]+)?)\s*$/);
         if (exMatch) {
           const sets = parseInt(exMatch[2]);
           currentDay.exercises.push({ id: Math.random().toString(36).slice(2), name: exMatch[1].trim(), sets, reps: exMatch[3], completedSets: Array(sets).fill(false) });
@@ -233,10 +235,14 @@
 - Calf Raises: 4x15`;
 
     function App() {
-      const [screen, setScreen] = useState("paste");
-      const [text, setText] = useState("");
-      const [days, setDays] = useState([]);
-      const [activeDay, setActiveDay] = useState(0);
+      const [screen, setScreen] = useState(() => { try { return JSON.parse(localStorage.getItem('workout_state'))?.screen || "paste"; } catch { return "paste"; } });
+      const [text, setText] = useState(() => { try { return JSON.parse(localStorage.getItem('workout_state'))?.text || ""; } catch { return ""; } });
+      const [days, setDays] = useState(() => { try { return JSON.parse(localStorage.getItem('workout_state'))?.days || []; } catch { return []; } });
+      const [activeDay, setActiveDay] = useState(() => { try { return JSON.parse(localStorage.getItem('workout_state'))?.activeDay || 0; } catch { return 0; } });
+
+      useEffect(() => {
+        localStorage.setItem('workout_state', JSON.stringify({ screen, text, days, activeDay }));
+      }, [screen, text, days, activeDay]);
 
       const handleLoad = (t) => {
         const parsed = parseWorkout(t);
@@ -254,16 +260,16 @@
             </div>
             <div style={{ background:"white", borderRadius:16, border:"1px solid #e2e8f0", padding:20, boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
               <div style={{ fontSize:12, fontWeight:600, color:"#64748b", marginBottom:8, letterSpacing:"0.05em", textTransform:"uppercase" }}>Your Workout Plan</div>
-              <textarea value={text} onChange={e => setText(e.target.value)}
+                <textarea value={text} onChange={e => setText(e.target.value)}
                 placeholder={"Paste your plan here. Example:\n\n## Day 1 - Push\n- Bench Press: 4x8\n- Overhead Press: 3x10\n\n## Day 2 - Pull\n- Pull-ups: 4x8"}
-                style={{ width:"100%", minHeight:220, border:"1px solid #e2e8f0", borderRadius:10, padding:"10px 12px", fontSize:13, fontFamily:"monospace", resize:"vertical", color:"#1e293b", lineHeight:1.6, boxSizing:"border-box" }} />
+                style={{ width:"100%", minHeight:220, border:"1px solid #e2e8f0", borderRadius:10, padding:"10px 12px", fontSize:16, fontFamily:"monospace", resize:"vertical", color:"#1e293b", lineHeight:1.6, boxSizing:"border-box" }} />
               <div style={{ display:"flex", gap:10, marginTop:14 }}>
                 <button onClick={() => handleLoad(text)} disabled={!text.trim()}
-                  style={{ flex:1, padding:"11px 0", background: text.trim() ? "#22c55e" : "#e2e8f0", color: text.trim() ? "white" : "#94a3b8", border:"none", borderRadius:10, fontWeight:700, fontSize:14, cursor: text.trim() ? "pointer" : "not-allowed" }}>
+                  style={{ flex:1, padding:"14px 0", background: text.trim() ? "#22c55e" : "#e2e8f0", color: text.trim() ? "white" : "#94a3b8", border:"none", borderRadius:10, fontWeight:700, fontSize:16, cursor: text.trim() ? "pointer" : "not-allowed", minHeight:48 }}>
                   Start Workout →
                 </button>
                 <button onClick={() => setText(SAMPLE)}
-                  style={{ padding:"11px 16px", background:"white", color:"#64748b", border:"1px solid #e2e8f0", borderRadius:10, fontWeight:600, fontSize:13, cursor:"pointer" }}>
+                  style={{ padding:"14px 16px", background:"white", color:"#64748b", border:"1px solid #e2e8f0", borderRadius:10, fontWeight:600, fontSize:15, cursor:"pointer", minHeight:48 }}>
                   Load Sample
                 </button>
               </div>
@@ -278,13 +284,13 @@
       const day = days[activeDay];
       return (
         <div style={{ minHeight:"100vh", background:"#f8fafc" }}>
-          <div style={{ background:"white", borderBottom:"1px solid #e2e8f0", padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <div style={{ background:"white", borderBottom:"1px solid #e2e8f0", padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <span style={{ fontSize:20 }}>💪</span>
-              <span style={{ fontWeight:700, fontSize:16, color:"#0f172a" }}>Workout Tracker</span>
+              <span style={{ fontSize:22 }}>💪</span>
+              <span style={{ fontWeight:700, fontSize:17, color:"#0f172a" }}>Workout Tracker</span>
             </div>
-            <button onClick={() => { setScreen("paste"); setText(""); setDays([]); }}
-              style={{ fontSize:12, color:"#64748b", background:"none", border:"1px solid #e2e8f0", borderRadius:8, padding:"5px 12px", cursor:"pointer" }}>
+            <button onClick={() => { localStorage.removeItem('workout_state'); setScreen("paste"); setText(""); setDays([]); }}
+              style={{ fontSize:14, color:"#64748b", background:"none", border:"1px solid #e2e8f0", borderRadius:8, padding:"8px 14px", cursor:"pointer", minHeight:40 }}>
               ← New Plan
             </button>
           </div>
@@ -295,7 +301,7 @@
                 const dn = d.exercises.reduce((a,e) => a+e.completedSets.filter(Boolean).length, 0);
                 const pct = t ? Math.round((dn/t)*100) : 0;
                 return (
-                  <button key={i} onClick={() => setActiveDay(i)} style={{ padding:"10px 14px", fontSize:13, fontWeight: activeDay===i ? 700 : 500, color: activeDay===i ? "#15803d" : "#64748b", background:"none", border:"none", borderBottom: activeDay===i ? "2px solid #22c55e" : "2px solid transparent", cursor:"pointer", whiteSpace:"nowrap" }}>
+                  <button key={i} onClick={() => setActiveDay(i)} style={{ padding:"12px 16px", fontSize:14, fontWeight: activeDay===i ? 700 : 500, color: activeDay===i ? "#15803d" : "#64748b", background:"none", border:"none", borderBottom: activeDay===i ? "2px solid #22c55e" : "2px solid transparent", cursor:"pointer", whiteSpace:"nowrap", minHeight:48 }}>
                     {d.title} {pct===100 ? "✓" : pct>0 ? `${pct}%` : ""}
                   </button>
                 );
