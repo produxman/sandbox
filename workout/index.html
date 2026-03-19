@@ -7,6 +7,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; -webkit-text-size-adjust: 100%; }
@@ -67,6 +68,10 @@
       return secs >= 60 ? `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}` : `${secs}s`;
     }
 
+    function toTitleCase(str) {
+      return str.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+    }
+
     function parseWorkout(text) {
       const days = [];
       let currentDay = null;
@@ -80,10 +85,11 @@
           continue;
         }
         if (!currentDay) { currentDay = { title: "Workout", exercises: [] }; days.push(currentDay); }
-        const exMatch = line.match(/^[-*•]?\s*(.+?):\s*(\d+)\s*[xX×]\s*(\d+(?:[-.:]\d+)?(?:[a-zA-Z]+)?)\s*$/);
+        const exMatch = line.match(/^[-*•]?\s*(.+?):\s*(\d+)\s*[xX×]\s*(\d+(?:[-.:}\d+)?(?:[a-zA-Z]+)?)\s*(?:\(([\d.]+)\s*kg\))?\s*$/);
         if (exMatch) {
           const sets = parseInt(exMatch[2]);
-          currentDay.exercises.push({ id: Math.random().toString(36).slice(2), name: exMatch[1].trim(), sets, reps: exMatch[3], completedSets: Array(sets).fill(false) });
+          const suggestedWeight = exMatch[4] ? parseFloat(exMatch[4]) : null;
+          currentDay.exercises.push({ id: Math.random().toString(36).slice(2), name: exMatch[1].trim(), sets, reps: exMatch[3], suggestedWeight, completedSets: Array(sets).fill(false) });
         }
         // unrecognised lines are silently skipped
       }
@@ -191,12 +197,14 @@
 
       const pct = (secs / durationSecs) * 100;
       const r = 22, circ = 2 * Math.PI * r;
-      const iconBtn = (onClick, icon, title, style) => (
-        <button onClick={onClick} title={title} style={{ width:38, height:38, borderRadius:"50%", border:"1px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:17, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, ...style }}>{icon}</button>
+      const iconBtn = (onClick, faClass, title, style) => (
+        <button onClick={onClick} title={title} style={{ width:52, height:52, borderRadius:"50%", border:"1px solid #e2e8f0", background:"white", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, ...style }}>
+          <i className={faClass} style={{ fontSize:20, pointerEvents:"none" }} />
+        </button>
       );
 
       return (
-        <div style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background: paused ? "#f8fafc" : "#f0fdf4", border:`1px solid ${paused ? "#e2e8f0" : "#bbf7d0"}`, borderRadius:10, marginTop:10 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", background: paused ? "#f8fafc" : "#f0fdf4", border:`1px solid ${paused ? "#e2e8f0" : "#bbf7d0"}`, borderRadius:10, marginTop:10 }}>
           <svg width={52} height={52}>
             <circle cx={26} cy={26} r={r} fill="none" stroke="#e2e8f0" strokeWidth={4} />
             <circle cx={26} cy={26} r={r} fill="none" stroke={paused ? "#94a3b8" : "#22c55e"} strokeWidth={4}
@@ -205,11 +213,11 @@
             <text x={26} y={30} textAnchor="middle" fontSize={11} fontWeight="700" fill={paused ? "#64748b" : "#15803d"}>{formatDuration(secs)}</text>
           </svg>
           <div style={{ flex:1 }}>
-            <div style={{ fontSize:13, fontWeight:600, color:"#0f172a", marginBottom:8 }}>Set {setIndex+1} of {totalSets}{paused ? " · Paused" : ""}</div>
-            <div style={{ display:"flex", gap:8 }}>
-              {iconBtn(onClose, "↺", "Reset", {})}
-              {iconBtn(() => setPaused(p => !p), paused ? "▶" : "⏸", paused ? "Resume" : "Pause", paused ? { border:"1px solid #22c55e", color:"#15803d" } : {})}
-              {iconBtn(() => { clearInterval(intervalRef.current); onComplete(); }, "✓", "Complete", { background:"#22c55e", border:"1px solid #22c55e", color:"white" })}
+            <div style={{ fontSize:13, fontWeight:600, color:"#0f172a", marginBottom:10 }}>Set {setIndex+1} of {totalSets}{paused ? " · Paused" : ""}</div>
+            <div style={{ display:"flex", gap:14 }}>
+              {iconBtn(onClose, "fa-solid fa-rotate-left", "Reset", {})}
+              {iconBtn(() => setPaused(p => !p), paused ? "fa-solid fa-play" : "fa-solid fa-pause", paused ? "Resume" : "Pause", paused ? { border:"1px solid #22c55e", color:"#15803d" } : {})}
+              {iconBtn(() => { clearInterval(intervalRef.current); onComplete(); }, "fa-solid fa-check", "Complete", { background:"#22c55e", border:"1px solid #22c55e", color:"white" })}
             </div>
           </div>
         </div>
@@ -293,10 +301,11 @@
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
             <div>
               <div style={{ fontWeight:600, fontSize:15, color: allDone ? "#15803d" : "#1e293b", display:"flex", alignItems:"center", gap:6 }}>
-                {allDone && <span>✓</span>}{ex.name}
+                {allDone && <span>✓</span>}{toTitleCase(ex.name)}
               </div>
               <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>
                 {ex.sets} × {ex.reps}
+                {ex.suggestedWeight != null && ex.weight == null ? <span style={{ marginLeft:6, color:"#94a3b8", fontWeight:500 }}>({ex.suggestedWeight}kg suggested)</span> : null}
                 {ex.weight != null ? <span style={{ marginLeft:6, color:"#0369a1", fontWeight:600 }}>{ex.weight}kg</span> : null}
                 {ex.effort ? <span style={{ marginLeft:4 }}>{EFFORT_OPTIONS.find(o => o.label === ex.effort)?.emoji}</span> : null}
               </div>
@@ -329,7 +338,7 @@
               onClose={() => setActiveTimerIdx(null)} />
           )}
           {showWeightInput && !ex.weightLogged && (
-            <WeightInput currentWeight={null} onSave={(w, effort) => {
+            <WeightInput currentWeight={ex.suggestedWeight ?? null} onSave={(w, effort) => {
               onChange({ ...ex, weight: w, effort, weightLogged: true });
               setShowWeightInput(false);
             }} />
@@ -344,7 +353,7 @@
         const lines = day.exercises.map(ex => {
           const weightStr = ex.weight != null ? `${ex.weight} kg` : "no weights";
           const effortStr = ex.effort ? ` ${EFFORT_OPTIONS.find(o => o.label === ex.effort)?.emoji} ${ex.effort}` : "";
-          return `- ${ex.name}: ${ex.sets}x${ex.reps} (${weightStr})${effortStr}`;
+          return `- ${toTitleCase(ex.name)}: ${ex.sets}x${ex.reps} (${weightStr})${effortStr}`;
         });
         const text = `I just completed my workout for today, Log workout weights below:\n\n${day.title}\n${lines.join("\n")}`;
         navigator.clipboard.writeText(text).then(() => {
