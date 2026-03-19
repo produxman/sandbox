@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Workout Tracker</title>
+  <title>Pandamonium</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -53,6 +53,20 @@
       return result;
     }
 
+    function parseTimedReps(reps) {
+      const r = String(reps).toLowerCase().trim();
+      const minMatch = r.match(/^(\d+(?:\.\d+)?)\s*min$/);
+      if (minMatch) return Math.round(parseFloat(minMatch[1]) * 60);
+      const secMatch = r.match(/^(\d+(?:\.\d+)?)\s*s(?:ec(?:s)?)?$/);
+      if (secMatch) return Math.round(parseFloat(secMatch[1]));
+      const colonMatch = r.match(/^(\d+):(\d{2})$/);
+      if (colonMatch) return parseInt(colonMatch[1]) * 60 + parseInt(colonMatch[2]);
+      return null;
+    }
+    function formatDuration(secs) {
+      return secs >= 60 ? `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}` : `${secs}s`;
+    }
+
     function parseWorkout(text) {
       const days = [];
       let currentDay = null;
@@ -83,17 +97,17 @@
         ref.current = setInterval(() => setSecs(s => { if (s <= 1) { clearInterval(ref.current); onDone(); return 0; } return s - 1; }), 1000);
         return () => clearInterval(ref.current);
       }, []);
-      const pct = (secs / REST_DEFAULT) * 100, r = 28, circ = 2 * Math.PI * r;
+      const pct = (secs / REST_DEFAULT) * 100, r = 16, circ = 2 * Math.PI * r;
       return (
-        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:"#f0fdf4", borderRadius:10, border:"1px solid #bbf7d0", marginTop:10 }}>
-          <svg width={68} height={68}>
-            <circle cx={34} cy={34} r={r} fill="none" stroke="#e2e8f0" strokeWidth={4} />
-            <circle cx={34} cy={34} r={r} fill="none" stroke="#22c55e" strokeWidth={4} strokeDasharray={circ} strokeDashoffset={circ*(1-pct/100)} strokeLinecap="round" transform="rotate(-90 34 34)" />
-            <text x={34} y={39} textAnchor="middle" fontSize={15} fontWeight="600" fill="#15803d">{secs}s</text>
+        <div style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 10px 4px 6px", background:"#f0fdf4", borderRadius:10, border:"1px solid #bbf7d0" }}>
+          <svg width={40} height={40}>
+            <circle cx={20} cy={20} r={r} fill="none" stroke="#e2e8f0" strokeWidth={3} />
+            <circle cx={20} cy={20} r={r} fill="none" stroke="#22c55e" strokeWidth={3} strokeDasharray={circ} strokeDashoffset={circ*(1-pct/100)} strokeLinecap="round" transform="rotate(-90 20 20)" />
+            <text x={20} y={24} textAnchor="middle" fontSize={9} fontWeight="700" fill="#15803d">{secs}s</text>
           </svg>
-          <div>
-            <div style={{ fontSize:13, fontWeight:600, color:"#15803d" }}>Rest Time</div>
-            <button onClick={() => { clearInterval(ref.current); onDone(); }} style={{ marginTop:4, fontSize:11, padding:"2px 10px", borderRadius:6, border:"1px solid #86efac", background:"white", color:"#15803d", cursor:"pointer" }}>Skip</button>
+          <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+            <span style={{ fontSize:11, fontWeight:600, color:"#15803d", lineHeight:1 }}>Rest</span>
+            <button onClick={() => { clearInterval(ref.current); onDone(); }} style={{ fontSize:12, padding:"5px 12px", borderRadius:7, border:"1px solid #86efac", background:"white", color:"#15803d", cursor:"pointer", fontWeight:600, minHeight:32, minWidth:44 }}>Skip</button>
           </div>
         </div>
       );
@@ -158,16 +172,122 @@
       );
     }
 
+    function TimerPanel({ setIndex, totalSets, durationSecs, onComplete, onClose }) {
+      const [paused, setPaused] = useState(false);
+      const [secs, setSecs] = useState(durationSecs);
+      const intervalRef = useRef();
+
+      useEffect(() => {
+        clearInterval(intervalRef.current);
+        if (paused) return;
+        intervalRef.current = setInterval(() => {
+          setSecs(s => {
+            if (s <= 1) { clearInterval(intervalRef.current); onComplete(); return 0; }
+            return s - 1;
+          });
+        }, 1000);
+        return () => clearInterval(intervalRef.current);
+      }, [paused]);
+
+      const pct = (secs / durationSecs) * 100;
+      const r = 22, circ = 2 * Math.PI * r;
+      const iconBtn = (onClick, icon, title, style) => (
+        <button onClick={onClick} title={title} style={{ width:38, height:38, borderRadius:"50%", border:"1px solid #e2e8f0", background:"white", cursor:"pointer", fontSize:17, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, ...style }}>{icon}</button>
+      );
+
+      return (
+        <div style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background: paused ? "#f8fafc" : "#f0fdf4", border:`1px solid ${paused ? "#e2e8f0" : "#bbf7d0"}`, borderRadius:10, marginTop:10 }}>
+          <svg width={52} height={52}>
+            <circle cx={26} cy={26} r={r} fill="none" stroke="#e2e8f0" strokeWidth={4} />
+            <circle cx={26} cy={26} r={r} fill="none" stroke={paused ? "#94a3b8" : "#22c55e"} strokeWidth={4}
+              strokeDasharray={circ} strokeDashoffset={circ * (1 - pct / 100)}
+              strokeLinecap="round" transform="rotate(-90 26 26)" />
+            <text x={26} y={30} textAnchor="middle" fontSize={11} fontWeight="700" fill={paused ? "#64748b" : "#15803d"}>{formatDuration(secs)}</text>
+          </svg>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:"#0f172a", marginBottom:8 }}>Set {setIndex+1} of {totalSets}{paused ? " · Paused" : ""}</div>
+            <div style={{ display:"flex", gap:8 }}>
+              {iconBtn(onClose, "↺", "Reset", {})}
+              {iconBtn(() => setPaused(p => !p), paused ? "▶" : "⏸", paused ? "Resume" : "Pause", paused ? { border:"1px solid #22c55e", color:"#15803d" } : {})}
+              {iconBtn(() => { clearInterval(intervalRef.current); onComplete(); }, "✓", "Complete", { background:"#22c55e", border:"1px solid #22c55e", color:"white" })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const EFFORT_OPTIONS = [
+      { emoji: "😌", label: "Easy" },
+      { emoji: "😤", label: "Moderate" },
+      { emoji: "🥵", label: "Hard" },
+    ];
+
+    function WeightInput({ currentWeight, onSave }) {
+      const [val, setVal] = useState(currentWeight != null ? String(currentWeight) : "");
+      const [effort, setEffort] = useState(null);
+      const validNum = val !== "" && !isNaN(parseFloat(val)) && parseFloat(val) >= 0;
+      const canCommit = effort !== null;
+      const commit = () => { if (canCommit) onSave(validNum ? parseFloat(val) : null, effort); };
+      return (
+        <div style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:"#dcfce7", border:"1px solid #86efac", borderRadius:10, marginTop:10 }}>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:"#15803d", marginBottom:8 }}>How was this exercise?</div>
+            <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:10 }}>
+              <input type="number" min="0" step="0.5" value={val}
+                onChange={e => setVal(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && commit()}
+                placeholder="0.0"
+                style={{ width:80, padding:"6px 10px", border:"1px solid #86efac", borderRadius:8, fontSize:16, textAlign:"right", background:"white" }} />
+              <span style={{ fontSize:13, color:"#15803d", fontWeight:500 }}>kg</span>
+              <div style={{ display:"flex", gap:6, alignItems:"center", marginLeft:4 }}>
+                {EFFORT_OPTIONS.map(opt => (
+                  <button key={opt.label} onClick={() => setEffort(effort === opt.label ? null : opt.label)}
+                    title={opt.label}
+                    style={{ fontSize:22, width:44, height:44, borderRadius:10, border:`2px solid ${effort === opt.label ? "#22c55e" : "#bbf7d0"}`, background: effort === opt.label ? "#dcfce7" : "white", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    {opt.emoji}
+                  </button>
+                ))}
+              </div>
+              <button onClick={commit} disabled={!canCommit}
+                style={{ padding:"6px 20px", background: canCommit ? "#22c55e" : "#e2e8f0", color: canCommit ? "white" : "#94a3b8", border:"none", borderRadius:8, fontWeight:600, fontSize:13, cursor: canCommit ? "pointer" : "not-allowed", minHeight:44 }}>
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function ExerciseCard({ ex, onChange }) {
       const [resting, setResting] = useState(false);
+      const [activeTimerIdx, setActiveTimerIdx] = useState(null);
+      const [showWeightInput, setShowWeightInput] = useState(false);
       const allDone = ex.completedSets.every(Boolean);
+      const durationSecs = parseTimedReps(ex.reps);
+      const isTimed = durationSecs !== null;
+
       const toggleSet = (i) => {
         const updated = [...ex.completedSets];
         const wasComplete = updated[i];
         updated[i] = !updated[i];
         onChange({ ...ex, completedSets: updated });
-        if (!wasComplete && !resting) setResting(true);
+        if (!wasComplete) {
+          setResting(true);
+          if (updated.every(Boolean)) setShowWeightInput(true);
+        }
       };
+
+      const completeTimedSet = (i) => {
+        const updated = [...ex.completedSets];
+        if (!updated[i]) {
+          updated[i] = true;
+          onChange({ ...ex, completedSets: updated });
+          setActiveTimerIdx(null);
+          setResting(true);
+          if (updated.every(Boolean)) setShowWeightInput(true);
+        }
+      };
+
       return (
         <div style={{ background: allDone ? "#f0fdf4" : "white", border:`1px solid ${allDone ? "#bbf7d0" : "#e2e8f0"}`, borderRadius:12, padding:"14px 16px", marginBottom:10, transition:"all 0.2s" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
@@ -175,20 +295,68 @@
               <div style={{ fontWeight:600, fontSize:15, color: allDone ? "#15803d" : "#1e293b", display:"flex", alignItems:"center", gap:6 }}>
                 {allDone && <span>✓</span>}{ex.name}
               </div>
-              <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>{ex.sets} sets × {ex.reps} reps</div>
+              <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>
+                {ex.sets} × {ex.reps}
+                {ex.weight != null ? <span style={{ marginLeft:6, color:"#0369a1", fontWeight:600 }}>{ex.weight}kg</span> : null}
+                {ex.effort ? <span style={{ marginLeft:4 }}>{EFFORT_OPTIONS.find(o => o.label === ex.effort)?.emoji}</span> : null}
+              </div>
             </div>
             <div style={{ fontSize:12, color:"#94a3b8" }}>{ex.completedSets.filter(Boolean).length}/{ex.sets} sets</div>
           </div>
           <ExerciseIllustration name={ex.name} />
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-            {ex.completedSets.map((done, i) => (
-              <button key={i} onClick={() => toggleSet(i)} style={{ width:38, height:38, borderRadius:8, border:`2px solid ${done ? "#22c55e" : "#e2e8f0"}`, background: done ? "#22c55e" : "white", color: done ? "white" : "#94a3b8", fontWeight:700, fontSize:13, cursor:"pointer", transition:"all 0.15s" }}>
-                {done ? "✓" : i+1}
-              </button>
-            ))}
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+            {ex.completedSets.map((done, i) => {
+              const isActive = isTimed && activeTimerIdx === i;
+              return (
+                <button key={i} onClick={() => {
+                  if (isTimed) { if (!done) setActiveTimerIdx(isActive ? null : i); }
+                  else toggleSet(i);
+                }} style={{ width:38, height:38, borderRadius:8,
+                  border:`2px solid ${done ? "#22c55e" : isActive ? "#22c55e" : "#e2e8f0"}`,
+                  background: done ? "#22c55e" : "white",
+                  color: done ? "white" : isActive ? "#22c55e" : "#94a3b8",
+                  fontWeight:700, fontSize:13, cursor: done ? "default" : "pointer", transition:"all 0.15s" }}>
+                  {done ? "✓" : i+1}
+                </button>
+              );
+            })}
+            {resting && <RestTimer onDone={() => setResting(false)} />}
           </div>
-          {resting && <RestTimer onDone={() => setResting(false)} />}
+          {isTimed && activeTimerIdx !== null && (
+            <TimerPanel key={activeTimerIdx} setIndex={activeTimerIdx} totalSets={ex.sets}
+              durationSecs={durationSecs}
+              onComplete={() => completeTimedSet(activeTimerIdx)}
+              onClose={() => setActiveTimerIdx(null)} />
+          )}
+          {showWeightInput && !ex.weightLogged && (
+            <WeightInput currentWeight={null} onSave={(w, effort) => {
+              onChange({ ...ex, weight: w, effort, weightLogged: true });
+              setShowWeightInput(false);
+            }} />
+          )}
         </div>
+      );
+    }
+
+    function CopyStatsButton({ day }) {
+      const [copied, setCopied] = useState(false);
+      const handleCopy = () => {
+        const lines = day.exercises.map(ex => {
+          const weightStr = ex.weight != null ? `${ex.weight} kg` : "no weights";
+          const effortStr = ex.effort ? ` ${EFFORT_OPTIONS.find(o => o.label === ex.effort)?.emoji} ${ex.effort}` : "";
+          return `- ${ex.name}: ${ex.sets}x${ex.reps} (${weightStr})${effortStr}`;
+        });
+        const text = `I just completed my workout for today, Log workout weights below:\n\n${day.title}\n${lines.join("\n")}`;
+        navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+      };
+      return (
+        <button onClick={handleCopy}
+          style={{ padding:"10px 24px", background: copied ? "#f0fdf4" : "white", color: copied ? "#15803d" : "#64748b", border:`1px solid ${copied ? "#bbf7d0" : "#e2e8f0"}`, borderRadius:10, fontWeight:600, fontSize:14, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:8, minHeight:44, transition:"all 0.2s" }}>
+          {copied ? "✓ Copied!" : "📋 Copy Stats"}
+        </button>
       );
     }
 
@@ -209,7 +377,12 @@
           {day.exercises.map(ex => (
             <ExerciseCard key={ex.id} ex={ex} onChange={updated => onUpdate({ ...day, exercises: day.exercises.map(e => e.id===updated.id ? updated : e) })} />
           ))}
-          {pct===100 && <div style={{ textAlign:"center", padding:20, color:"#15803d", fontWeight:700, fontSize:16 }}>🎉 Day complete! Great work!</div>}
+          {pct===100 && (
+            <div style={{ textAlign:"center", padding:"20px 0 4px" }}>
+              <div style={{ color:"#15803d", fontWeight:700, fontSize:16, marginBottom:14 }}>🎉 Day complete! Great work!</div>
+              <CopyStatsButton day={day} />
+            </div>
+          )}
         </div>
       );
     }
@@ -253,7 +426,7 @@
           <div style={{ width:"100%", maxWidth:560 }}>
             <div style={{ textAlign:"center", marginBottom:28 }}>
               <div style={{ fontSize:32, marginBottom:8 }}>💪</div>
-              <h1 style={{ fontSize:22, fontWeight:700, color:"#0f172a" }}>Workout Tracker</h1>
+              <h1 style={{ fontSize:22, fontWeight:700, color:"#0f172a" }}>Pandamonium</h1>
               <p style={{ color:"#64748b", fontSize:14, marginTop:6 }}>Paste your workout plan below to get started</p>
             </div>
             <div style={{ background:"white", borderRadius:16, border:"1px solid #e2e8f0", padding:20, boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
@@ -291,26 +464,12 @@
           <div style={{ background:"white", borderBottom:"1px solid #e2e8f0", padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <span style={{ fontSize:22 }}>💪</span>
-              <span style={{ fontWeight:700, fontSize:17, color:"#0f172a" }}>Workout Tracker</span>
+              <span style={{ fontWeight:700, fontSize:17, color:"#0f172a" }}>Pandamoniumr</span>
             </div>
             <button onClick={() => { localStorage.removeItem('workout_state'); setScreen("paste"); setText(""); setDays([]); }}
               style={{ fontSize:14, color:"#64748b", background:"none", border:"1px solid #e2e8f0", borderRadius:8, padding:"8px 14px", cursor:"pointer", minHeight:40 }}>
               ← New Plan
             </button>
-          </div>
-          <div style={{ overflowX:"auto", borderBottom:"1px solid #e2e8f0", background:"white" }}>
-            <div style={{ display:"flex", padding:"0 12px", gap:4, minWidth:"max-content" }}>
-              {days.map((d, i) => {
-                const t = d.exercises.reduce((a,e) => a+e.sets, 0);
-                const dn = d.exercises.reduce((a,e) => a+e.completedSets.filter(Boolean).length, 0);
-                const pct = t ? Math.round((dn/t)*100) : 0;
-                return (
-                  <button key={i} onClick={() => setActiveDay(i)} style={{ padding:"12px 16px", fontSize:14, fontWeight: activeDay===i ? 700 : 500, color: activeDay===i ? "#15803d" : "#64748b", background:"none", border:"none", borderBottom: activeDay===i ? "2px solid #22c55e" : "2px solid transparent", cursor:"pointer", whiteSpace:"nowrap", minHeight:48 }}>
-                    {d.title} {pct===100 ? "✓" : pct>0 ? `${pct}%` : ""}
-                  </button>
-                );
-              })}
-            </div>
           </div>
           <div style={{ maxWidth:560, margin:"0 auto", padding:"16px 16px 40px" }}>
             <h2 style={{ fontSize:17, fontWeight:700, color:"#0f172a", marginBottom:14 }}>{day.title}</h2>
