@@ -232,24 +232,24 @@
         <div style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:"#dcfce7", border:"1px solid #86efac", borderRadius:10, marginTop:10 }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:12, fontWeight:600, color:"#15803d", marginBottom:8 }}>How was this exercise?</div>
-            <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:10 }}>
+            <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:8 }}>
               <input type="number" min="0" step="0.5" value={val}
                 onChange={e => setVal(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && commit()}
                 placeholder="0.0"
-                style={{ width:80, padding:"6px 10px", border:"1px solid #86efac", borderRadius:8, fontSize:16, textAlign:"right", background:"white" }} />
-              <span style={{ fontSize:13, color:"#15803d", fontWeight:500 }}>kg</span>
-              <div style={{ display:"flex", gap:6, alignItems:"center", marginLeft:4 }}>
-                {EFFORT_OPTIONS.map(opt => (
-                  <button key={opt.label} onClick={() => setEffort(effort === opt.label ? null : opt.label)}
-                    title={opt.label}
-                    style={{ fontSize:22, width:44, height:44, borderRadius:10, border:`2px solid ${effort === opt.label ? "#22c55e" : "#bbf7d0"}`, background: effort === opt.label ? "#dcfce7" : "white", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    {opt.emoji}
-                  </button>
-                ))}
-              </div>
+                style={{ width:72, padding:"6px 8px", border:"1px solid #86efac", borderRadius:8, fontSize:16, textAlign:"right", background:"white", minWidth:0 }} />
+              <span style={{ fontSize:13, color:"#15803d", fontWeight:500, flexShrink:0 }}>kg</span>
+            </div>
+            <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+              {EFFORT_OPTIONS.map(opt => (
+                <button key={opt.label} onClick={() => setEffort(effort === opt.label ? null : opt.label)}
+                  title={opt.label}
+                  style={{ fontSize:20, width:40, height:40, borderRadius:10, border:`2px solid ${effort === opt.label ? "#22c55e" : "#bbf7d0"}`, background: effort === opt.label ? "#dcfce7" : "white", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  {opt.emoji}
+                </button>
+              ))}
               <button onClick={commit} disabled={!canCommit}
-                style={{ padding:"6px 20px", background: canCommit ? "#22c55e" : "#e2e8f0", color: canCommit ? "white" : "#94a3b8", border:"none", borderRadius:8, fontWeight:600, fontSize:13, cursor: canCommit ? "pointer" : "not-allowed", minHeight:44 }}>
+                style={{ flex:1, padding:"6px 10px", background: canCommit ? "#22c55e" : "#e2e8f0", color: canCommit ? "white" : "#94a3b8", border:"none", borderRadius:8, fontWeight:600, fontSize:13, cursor: canCommit ? "pointer" : "not-allowed", minHeight:40 }}>
                 Save
               </button>
             </div>
