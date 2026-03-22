@@ -456,6 +456,46 @@ input, textarea, select { font-size: 16px !important; }
   box-shadow: var(--shadow-card), inset 0 0 0 1px var(--accent-light);
 }
 
+.exercise-card--skipped {
+  opacity: 0.6;
+}
+
+.skip-icon {
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.exercise-card__skipped-tag {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.btn-skip {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: none;
+  border: 1px solid var(--separator);
+  border-radius: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+  min-height: 32px;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
+.btn-skip:active {
+  transform: scale(0.95);
+  opacity: 0.7;
+}
+
+.btn-skip--active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .exercise-card__header {
   display: flex;
   justify-content: space-between;

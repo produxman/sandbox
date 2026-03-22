@@ -109,19 +109,48 @@ function parseWorkout(text) {
   return days.filter(d => d.exercises.length > 0);
 }
 
+/* ─── Alert Sound ─── */
+function playAlert() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+    // second beep
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.frequency.value = 1100;
+    gain2.gain.setValueAtTime(0.3, ctx.currentTime + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
+    osc2.start(ctx.currentTime + 0.15);
+    osc2.stop(ctx.currentTime + 0.45);
+    setTimeout(() => ctx.close(), 600);
+  } catch (e) {}
+}
+
 /* ─── RestTimer ─── */
 function RestTimer({ onDone }) {
+  const endTimeRef = useRef(Date.now() + REST_DEFAULT * 1000);
   const [secs, setSecs] = useState(REST_DEFAULT);
   const ref = useRef();
 
   useEffect(() => {
-    ref.current = setInterval(() => {
-      setSecs(s => {
-        if (s <= 1) { clearInterval(ref.current); onDone(); return 0; }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(ref.current);
+    const tick = () => {
+      const remaining = Math.round((endTimeRef.current - Date.now()) / 1000);
+      if (remaining <= 0) { clearInterval(ref.current); setSecs(0); onDone(); }
+      else setSecs(remaining);
+    };
+    ref.current = setInterval(tick, 250);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(ref.current); document.removeEventListener("visibilitychange", tick); };
   }, []);
 
   const pct = secs / REST_DEFAULT;
@@ -207,18 +236,25 @@ function ExerciseIllustration({ name }) {
 function TimerPanel({ setIndex, totalSets, durationSecs, onComplete, onClose }) {
   const [paused, setPaused] = useState(false);
   const [secs, setSecs] = useState(durationSecs);
+  const endTimeRef = useRef(Date.now() + durationSecs * 1000);
+  const remainingOnPauseRef = useRef(durationSecs);
   const intervalRef = useRef();
 
   useEffect(() => {
     clearInterval(intervalRef.current);
-    if (paused) return;
-    intervalRef.current = setInterval(() => {
-      setSecs(s => {
-        if (s <= 1) { clearInterval(intervalRef.current); onComplete(); return 0; }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(intervalRef.current);
+    if (paused) {
+      remainingOnPauseRef.current = secs;
+      return;
+    }
+    endTimeRef.current = Date.now() + remainingOnPauseRef.current * 1000;
+    const tick = () => {
+      const remaining = Math.round((endTimeRef.current - Date.now()) / 1000);
+      if (remaining <= 0) { clearInterval(intervalRef.current); setSecs(0); playAlert(); onComplete(); }
+      else setSecs(remaining);
+    };
+    intervalRef.current = setInterval(tick, 250);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(intervalRef.current); document.removeEventListener("visibilitychange", tick); };
   }, [paused]);
 
   const pct = secs / durationSecs;
@@ -300,21 +336,21 @@ function WeightInput({ currentWeight, onSave }) {
 }
 
 /* ─── ExerciseCard ─── */
-function ExerciseCard({ ex, onChange, index }) {
-  const [resting, setResting] = useState(false);
+function ExerciseCard({ ex, onChange, index, isResting, onStartRest, onEndRest }) {
   const [activeTimerIdx, setActiveTimerIdx] = useState(null);
   const [showWeightInput, setShowWeightInput] = useState(false);
-  const allDone = ex.completedSets.every(Boolean);
+  const allDone = !ex.skipped && ex.completedSets.every(Boolean);
   const durationSecs = parseTimedReps(ex.reps);
   const isTimed = durationSecs !== null;
 
   const toggleSet = i => {
+    if (ex.skipped) return;
     const updated = [...ex.completedSets];
     const wasComplete = updated[i];
     updated[i] = !updated[i];
     onChange({ ...ex, completedSets: updated });
     if (!wasComplete) {
-      setResting(true);
+      onStartRest(ex.id);
       if (updated.every(Boolean)) setShowWeightInput(true);
     }
   };
@@ -325,41 +361,69 @@ function ExerciseCard({ ex, onChange, index }) {
       updated[i] = true;
       onChange({ ...ex, completedSets: updated });
       setActiveTimerIdx(null);
-      setResting(true);
+      onStartRest(ex.id);
       if (updated.every(Boolean)) setShowWeightInput(true);
     }
   };
 
+  const handleSkip = () => {
+    if (ex.skipped) {
+      onChange({ ...ex, skipped: false, completedSets: Array(ex.sets).fill(false) });
+    } else {
+      onChange({ ...ex, skipped: true, completedSets: Array(ex.sets).fill(false) });
+      onEndRest();
+      setActiveTimerIdx(null);
+      setShowWeightInput(false);
+    }
+  };
+
+  const cardClass = ex.skipped ? "exercise-card exercise-card--skipped"
+    : allDone ? "exercise-card exercise-card--done"
+    : "exercise-card";
+
   return (
     React.createElement("div", {
-      className: "exercise-card" + (allDone ? " exercise-card--done" : ""),
+      className: cardClass,
       style: { animationDelay: (index * 0.05) + "s" }
     },
       React.createElement("div", { className: "exercise-card__header" },
         React.createElement("div", null,
           React.createElement("div", { className: "exercise-card__name" },
             allDone && React.createElement("span", { className: "check-icon" }, "\u2713"),
-            toTitleCase(ex.name)
+            ex.skipped && React.createElement("span", { className: "skip-icon" }, "\u2715"),
+            React.createElement("span", { style: ex.skipped ? { textDecoration: "line-through", opacity: 0.5 } : null },
+              toTitleCase(ex.name))
           ),
           React.createElement("div", { className: "exercise-card__meta" },
-            ex.sets + " \u00D7 " + ex.reps,
-            ex.suggestedWeight != null && ex.weight == null
-              ? React.createElement("span", { className: "exercise-card__suggested-tag" },
-                  "(" + ex.suggestedWeight + "kg suggested)")
-              : null,
-            ex.weight != null
-              ? React.createElement("span", { className: "exercise-card__weight-tag" }, ex.weight + "kg")
-              : null,
-            ex.effort
-              ? React.createElement("span", null, EFFORT_OPTIONS.find(o => o.label === ex.effort)?.emoji)
-              : null
+            ex.skipped
+              ? React.createElement("span", { className: "exercise-card__skipped-tag" }, "Skipped")
+              : React.createElement(React.Fragment, null,
+                  ex.sets + " \u00D7 " + ex.reps,
+                  ex.suggestedWeight != null && ex.weight == null
+                    ? React.createElement("span", { className: "exercise-card__suggested-tag" },
+                        "(" + ex.suggestedWeight + "kg suggested)")
+                    : null,
+                  ex.weight != null
+                    ? React.createElement("span", { className: "exercise-card__weight-tag" }, ex.weight + "kg")
+                    : null,
+                  ex.effort
+                    ? React.createElement("span", null, EFFORT_OPTIONS.find(o => o.label === ex.effort)?.emoji)
+                    : null
+                )
           )
         ),
-        React.createElement("div", { className: "exercise-card__counter" },
-          ex.completedSets.filter(Boolean).length + "/" + ex.sets + " sets")
+        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+          !allDone && React.createElement("button", {
+            className: "btn-skip" + (ex.skipped ? " btn-skip--active" : ""),
+            onClick: handleSkip,
+            title: ex.skipped ? "Undo skip" : "Skip exercise"
+          }, ex.skipped ? "Undo" : "Skip"),
+          !ex.skipped && React.createElement("div", { className: "exercise-card__counter" },
+            ex.completedSets.filter(Boolean).length + "/" + ex.sets + " sets")
+        )
       ),
-      React.createElement(ExerciseIllustration, { name: ex.name }),
-      React.createElement("div", { className: "sets-row" },
+      !ex.skipped && React.createElement(ExerciseIllustration, { name: ex.name }),
+      !ex.skipped && React.createElement("div", { className: "sets-row" },
         ex.completedSets.map((done, i) => {
           const isActive = isTimed && activeTimerIdx === i;
           return React.createElement("button", {
@@ -371,14 +435,14 @@ function ExerciseCard({ ex, onChange, index }) {
             }
           }, done ? "\u2713" : i + 1);
         }),
-        resting && React.createElement(RestTimer, { onDone: () => setResting(false) })
+        isResting && React.createElement(RestTimer, { onDone: () => onEndRest() })
       ),
-      isTimed && activeTimerIdx !== null && React.createElement(TimerPanel, {
+      !ex.skipped && isTimed && activeTimerIdx !== null && React.createElement(TimerPanel, {
         key: activeTimerIdx, setIndex: activeTimerIdx, totalSets: ex.sets,
         durationSecs, onComplete: () => completeTimedSet(activeTimerIdx),
         onClose: () => setActiveTimerIdx(null)
       }),
-      showWeightInput && !ex.weightLogged && React.createElement(WeightInput, {
+      !ex.skipped && showWeightInput && !ex.weightLogged && React.createElement(WeightInput, {
         currentWeight: ex.suggestedWeight ?? null,
         onSave: (w, effort) => {
           onChange({ ...ex, weight: w, effort, weightLogged: true });
@@ -390,15 +454,19 @@ function ExerciseCard({ ex, onChange, index }) {
 }
 
 /* ─── CopyStatsButton ─── */
-function CopyStatsButton({ day }) {
+function CopyStatsButton({ days }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
-    const lines = day.exercises.map(ex => {
-      const weightStr = ex.weight != null ? ex.weight + " kg" : "no weights";
-      const effortStr = ex.effort ? " " + (EFFORT_OPTIONS.find(o => o.label === ex.effort)?.emoji) + " " + ex.effort : "";
-      return "- " + toTitleCase(ex.name) + ": " + ex.sets + "x" + ex.reps + " (" + weightStr + ")" + effortStr;
+    const sections = days.map(day => {
+      const lines = day.exercises.map(ex => {
+        if (ex.skipped) return "- " + toTitleCase(ex.name) + ": Skipped";
+        const weightStr = ex.weight != null ? ex.weight + " kg" : "no weights";
+        const effortStr = ex.effort ? " " + (EFFORT_OPTIONS.find(o => o.label === ex.effort)?.emoji) + " " + ex.effort : "";
+        return "- " + toTitleCase(ex.name) + ": " + ex.sets + "x" + ex.reps + " (" + weightStr + ")" + effortStr;
+      });
+      return day.title + "\n" + lines.join("\n");
     });
-    const text = "I just completed my workout for today, Log workout weights below:\n\n" + day.title + "\n" + lines.join("\n");
+    const text = "I just completed my workout for today, Log workout weights below:\n\n" + sections.join("\n\n");
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -413,8 +481,9 @@ function CopyStatsButton({ day }) {
 
 /* ─── WorkoutDay ─── */
 function WorkoutDay({ day, onUpdate }) {
+  const [restingExId, setRestingExId] = useState(null);
   const total = day.exercises.reduce((a, e) => a + e.sets, 0);
-  const done = day.exercises.reduce((a, e) => a + e.completedSets.filter(Boolean).length, 0);
+  const done = day.exercises.reduce((a, e) => a + (e.skipped ? e.sets : e.completedSets.filter(Boolean).length), 0);
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   return (
@@ -431,16 +500,14 @@ function WorkoutDay({ day, onUpdate }) {
       day.exercises.map((ex, i) =>
         React.createElement(ExerciseCard, {
           key: ex.id, ex, index: i,
+          isResting: restingExId === ex.id,
+          onStartRest: id => setRestingExId(id),
+          onEndRest: () => setRestingExId(null),
           onChange: updated => onUpdate({
             ...day,
             exercises: day.exercises.map(e => e.id === updated.id ? updated : e)
           })
         })
-      ),
-      pct === 100 && React.createElement("div", { className: "completion-banner" },
-        React.createElement("div", { className: "completion-banner__emoji" }, "\uD83C\uDF89"),
-        React.createElement("div", { className: "completion-banner__text" }, "Day complete! Great work!"),
-        React.createElement(CopyStatsButton, { day })
       )
     )
   );
@@ -525,6 +592,9 @@ function App() {
 
   /* ── Workout screen ── */
   const day = days[activeDay];
+  const allDaysComplete = days.every(d =>
+    d.exercises.every(ex => ex.skipped || ex.completedSets.every(Boolean))
+  );
   return (
     React.createElement("div", { style: { minHeight: "100vh", minHeight: "100dvh", background: "var(--bg)" } },
 
@@ -559,7 +629,12 @@ function App() {
         React.createElement(WorkoutDay, {
           day,
           onUpdate: updated => setDays(days.map((d, i) => i === activeDay ? updated : d))
-        })
+        }),
+        allDaysComplete && React.createElement("div", { className: "completion-banner" },
+          React.createElement("div", { className: "completion-banner__emoji" }, "\uD83C\uDF89"),
+          React.createElement("div", { className: "completion-banner__text" }, "All done! Great work!"),
+          React.createElement(CopyStatsButton, { days })
+        )
       )
     )
   );
